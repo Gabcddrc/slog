@@ -8,3 +8,4 @@ bazel-slog
 test_import/example_project_java_via_gradle/libs/
 test_import/example_project_java_via_gradle/build/
 test_import/example_project_java_via_gradle/.gradle/
+test_import/example_project_java_via_gradle/bin/
