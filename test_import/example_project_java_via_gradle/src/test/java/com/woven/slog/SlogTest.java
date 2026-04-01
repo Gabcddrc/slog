@@ -31,9 +31,7 @@ public class SlogTest {
 
             assertEquals(1, data.getRecords().size());
             assertEquals(SlogSeverity.INFO, data.getRecords().get(0).getSeverity());
-            assertEquals("_t0_s", data.getRecords().get(0).getTags().get(0).getKey());
-            assertEquals("Hello World",
-                    data.getRecords().get(0).getTags().get(0).getValueString());
+            assertEquals("Hello World", data.getRecords().get(0).getFlatText());
         }
     }
 

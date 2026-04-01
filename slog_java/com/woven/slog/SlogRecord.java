@@ -26,10 +26,13 @@ public final class SlogRecord {
     private final long globalNs;
     private final List<SlogTag> tags;
     private final String jsonString;
+    private final String slogText;
+    private final String flatText;
 
     SlogRecord(int threadId, int callSiteId, byte severity,
                long elapsedNs, long globalNs,
-               SlogTag[] tags, String jsonString) {
+               SlogTag[] tags, String jsonString,
+               String slogText, String flatText) {
         this.threadId = threadId;
         this.callSiteId = callSiteId;
         this.severity = severity;
@@ -37,6 +40,8 @@ public final class SlogRecord {
         this.globalNs = globalNs;
         this.tags = Collections.unmodifiableList(Arrays.asList(tags));
         this.jsonString = jsonString;
+        this.slogText = slogText;
+        this.flatText = flatText;
     }
 
     public int getThreadId() { return threadId; }
@@ -45,6 +50,8 @@ public final class SlogRecord {
     public long getElapsedNs() { return elapsedNs; }
     public long getGlobalNs() { return globalNs; }
     public List<SlogTag> getTags() { return tags; }
+    public String getSlogText() { return slogText; }
+    public String getFlatText() { return flatText; }
 
     @Override
     public String toString() { return jsonString; }

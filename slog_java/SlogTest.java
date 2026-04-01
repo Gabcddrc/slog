@@ -39,8 +39,11 @@ public class SlogTest {
 
             assertEquals(3, data.getRecords().size());
             assertEquals(SlogSeverity.INFO, data.getRecords().get(0).getSeverity());
+            assertEquals("Hi INFO", data.getRecords().get(0).getFlatText());
             assertEquals(SlogSeverity.WARNING, data.getRecords().get(1).getSeverity());
+            assertEquals("Hi WARNING", data.getRecords().get(1).getFlatText());
             assertEquals(SlogSeverity.ERROR, data.getRecords().get(2).getSeverity());
+            assertEquals("Hi ERROR", data.getRecords().get(2).getFlatText());
         }
     }
 
@@ -82,6 +85,7 @@ public class SlogTest {
                     data.getCallSites().get(record0.getCallSiteId());
             assertTrue(callSite.getFile().endsWith("SlogTest.java"));
             assertEquals("testCallSite", callSite.getFunction());
+            assertEquals(77, callSite.getLine());
         }
     }
 
@@ -103,7 +107,14 @@ public class SlogTest {
                     data.getCallSites().get(record0.getCallSiteId());
             assertTrue(callSite.getFile().endsWith("SlogTest.java"));
             assertEquals("testScope", callSite.getFunction());
-            assertEquals(5, record0.getTags().size());
+            // Find the "foo" tag by key to avoid depending on internal tag ordering.
+            String fooValue = null;
+            for (SlogTag tag : record0.getTags()) {
+                if ("foo".equals(tag.getKey())) {
+                    fooValue = tag.getValueString();
+                }
+            }
+            assertEquals("bar", fooValue);
             assertEquals(".scope_name", record0.getTags().get(0).getKey());
             assertEquals("foo_scope", record0.getTags().get(0).getValueString());
 
@@ -123,17 +134,20 @@ public class SlogTest {
         try (SlogBuffer slogBuffer = new SlogBuffer(SlogContext.getInstance())) {
             try {
                 try (SlogScope scope = Slog.scope("fooz_scope")) {
-                    throw new RuntimeException("foo-error");
+                    Slog.info("before exception");
+                    if (true) throw new RuntimeException("foo-error");
+                    Slog.info("after exception");
                 }
             } catch (RuntimeException e) {
-                System.out.println(
-                        "Exception could be handled here: " + e.getMessage());
+                // Exception caught; scope was closed by try-with-resources.
             }
 
             slogBuffer.waitSlogQueue();
             SlogBufferData data = slogBuffer.flush();
 
-            assertEquals(2, data.getRecords().size());
+            // 3 records: scope-open, "before exception", scope-close.
+            // "after exception" was never reached due to the throw.
+            assertEquals(3, data.getRecords().size());
 
             SlogRecord record0 = data.getRecords().get(0);
             SlogCallSite callSite =
@@ -145,8 +159,11 @@ public class SlogTest {
             assertEquals("fooz_scope", record0.getTags().get(0).getValueString());
 
             SlogRecord record1 = data.getRecords().get(1);
-            assertEquals(0, record1.getCallSiteId());
-            assertEquals(2, record1.getTags().size());
+            assertEquals("before exception", record1.getFlatText());
+
+            SlogRecord record2 = data.getRecords().get(2);
+            assertEquals(0, record2.getCallSiteId());
+            assertEquals(2, record2.getTags().size());
         }
     }
 }

@@ -62,9 +62,10 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void*) {
 
   cls = env->FindClass("com/woven/slog/SlogRecord");
   g_recordClass = reinterpret_cast<jclass>(env->NewGlobalRef(cls));
-  g_recordCtor =
-      env->GetMethodID(g_recordClass, "<init>",
-                       "(IIBJJ[Lcom/woven/slog/SlogTag;Ljava/lang/String;)V");
+  g_recordCtor = env->GetMethodID(
+      g_recordClass, "<init>",
+      "(IIBJJ[Lcom/woven/slog/SlogTag;Ljava/lang/String;Ljava/lang/String;"
+      "Ljava/lang/String;)V");
 
   cls = env->FindClass("com/woven/slog/SlogCallSite");
   g_callSiteClass = reinterpret_cast<jclass>(env->NewGlobalRef(cls));
@@ -228,7 +229,11 @@ Java_com_woven_slog_SlogNative_bufferFlush(JNIEnv* env, jclass,
     }
 
     std::string jsonStr = printer.jsonString(record);
+    std::string slogTextStr = printer.slogText(record);
+    std::string flatTextStr = printer.flatText(record);
     jstring jJsonStr = env->NewStringUTF(jsonStr.c_str());
+    jstring jSlogText = env->NewStringUTF(slogTextStr.c_str());
+    jstring jFlatText = env->NewStringUTF(flatTextStr.c_str());
 
     jobject jRecord = env->NewObject(
         g_recordClass, g_recordCtor,
@@ -236,11 +241,14 @@ Java_com_woven_slog_SlogNative_bufferFlush(JNIEnv* env, jclass,
         static_cast<jint>(record.call_site_id()),
         static_cast<jbyte>(record.severity()),
         static_cast<jlong>(record.time().elapsed_ns),
-        static_cast<jlong>(record.time().global_ns), jTags, jJsonStr);
+        static_cast<jlong>(record.time().global_ns), jTags, jJsonStr,
+        jSlogText, jFlatText);
     env->SetObjectArrayElement(jRecords, i, jRecord);
     env->DeleteLocalRef(jRecord);
     env->DeleteLocalRef(jTags);
     env->DeleteLocalRef(jJsonStr);
+    env->DeleteLocalRef(jSlogText);
+    env->DeleteLocalRef(jFlatText);
   }
 
   // Convert call sites.
