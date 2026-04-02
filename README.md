@@ -18,23 +18,15 @@ Requirements:
 Instructions: 
 * Follow the example from `test_import/example_project_py_via_bazel` directory.
 
-## Into a Java project built by Bazel
+## Into a Java project
 Requirements:
-* All C++ requirements from above
 * Java 8+
+* All C++ requirements from above (for building from source)
 
-In your `WORKSPACE` file, add slog as a dependency (same as for C++). Then in your `BUILD` file:
-```python
-java_binary(
-    name = "my_app",
-    srcs = ["MyApp.java"],
-    deps = ["@slog//:slog_java"],
-)
-```
-
-Usage:
+### Usage
 ```java
 import com.woven.slog.Slog;
+import com.woven.slog.SlogScope;
 
 Slog.info("Hello from Java");
 Slog.info("with tags", Slog.tags("key", "value"));
@@ -44,29 +36,30 @@ try (SlogScope scope = Slog.scope("my_scope")) {
 }
 ```
 
-## Into a Java project built by Gradle
-Requirements:
-* All C++ requirements from above
-* Java 8+
-* Bazel (to build the native libraries)
-
-Gradle cannot build the JNI native code directly, so you first build the artifacts with Bazel, then use them from Gradle.
-
-**Step 1.** Build the slog Java JAR and native `.so` files with Bazel:
+### Building versioned artifacts
+Run the packaging script to produce versioned, traceable artifacts:
 ```bash
-bazel build //slog_java:libslog_jni.so //slog_java:slog_java
+pkg_slog_java/build_artifacts.sh
+```
+The version is auto-detected from the `VERSION` file and git SHA. It produces in `pkg_slog_java/out/`:
+* `slog_java-<version>.jar` — the Java library
+* `slog_jni-<version>.tar.gz` — native `.so` files required at runtime
+* `slog_java-<version>.metadata.txt` — version, git SHA, and build timestamp
+
+The script also creates an annotated git tag `slog_java-v<version>` for traceability. Upload the produced artifacts to Artifactory.
+
+### Importing via Bazel
+Import slog into your `WORKSPACE` as an `http_archive` (from Artifactory) or `git_repository` (from source), same as for C++. The Java target is included automatically. Then in your `BUILD` file:
+```python
+java_binary(
+    name = "my_app",
+    srcs = ["MyApp.java"],
+    deps = ["@slog//:slog_java"],
+)
 ```
 
-**Step 2.** Copy the artifacts into your Gradle project:
-```bash
-mkdir -p libs/native
-cp bazel-bin/slog_java/libslog_java.jar libs/slog_java.jar
-cp bazel-bin/slog_java/libslog_jni.so libs/native/
-# Also copy dependent shared libraries:
-cp bazel-bin/slog_java/libslog_jni.so.runfiles/__main__/_solib_k8/*.so libs/native/
-```
-
-**Step 3.** In your `build.gradle`, add the JAR as a dependency and configure the native library path:
+### Importing via Gradle
+The versioned artifacts on Artifactory (`slog_java-<version>.jar` and `slog_jni-<version>.tar.gz`) should be fetched as part of your project's build pipeline and placed into `libs/`. Then in your `build.gradle`:
 ```groovy
 dependencies {
     implementation files('libs/slog_java.jar')
@@ -79,7 +72,7 @@ test {
 }
 ```
 
-A complete working example is in `test_import/example_project_java_via_gradle`, including a `prepare.sh` script that automates steps 1-2.
+A development example for testing within this repo is in `test_import/example_project_java_via_gradle`.
 
 # Contributing
 ## Installing tools for build
@@ -93,5 +86,5 @@ A complete working example is in `test_import/example_project_java_via_gradle`, 
 * `scripts/lint.sh ./ -i` -- automatically format all code.
 
 ## Releases.
-CI automatically uploads a zip-archive to Artifactory. This .zip archive could be imported into another bazel project. The .zip file naming and content are matching a .zip file that could be created via GitHub releases.
+CI automatically uploads a zip-archive to Artifactory. This .zip archive could be imported into another bazel project. The .zip file naming and content are matching a .zip file that could be created via GitHub releases. For Java artifacts, see [Building versioned artifacts](#building-versioned-artifacts) above.
 
